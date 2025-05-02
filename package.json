@@ -1,12 +1,16 @@
 {
   "name": "fastify-play",
   "version": "1.0.0",
-  "type": "module",
   "main": "server.js",
   "scripts": {
-    "start": "node server.js"
+    "dev": "ts-node-dev --respawn --transpile-only server.ts"
+  },
+  "devDependencies": {
+    "@types/node": "^22.15.3",
+    "ts-node-dev": "^2.0.0",
+    "typescript": "^5.8.3"
   },
   "dependencies": {
-    "fastify": "^5.3.2"
+    "fastify": "^4.29.1"
   }
 }
