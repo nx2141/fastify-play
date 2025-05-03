@@ -1,15 +1,29 @@
 import fastify from "fastify";
+import rateLimit from "@fastify/rate-limit";
 
-const app = fastify({ logger: true });
+async function start() {
+  const app = fastify({ logger: true });
 
-app.get("/ping", () => {
-  return { message: "pong" };
-});
+  await app.register(rateLimit, {
+    max: 10,
+    timeWindow: "1 minute",
+  });
 
-app.listen({ port: 3000 }, (err, address) => {
-  if (err) {
+  app.post("/ping", async (req) => {
+    const { name } = await req.body as { name: string };
+    if(name){
+      return { message: `Hello ${name}` };
+    }
+    return { message: "pong" };
+  });
+
+  try {
+    const address = await app.listen({ port: 3000 });
+    app.log.info(`Server running at ${address}`);
+  } catch (err) {
     app.log.error(err);
     process.exit(1);
   }
-  app.log.info(`Server running at ${address}`);
-});
+}
+
+start();// topレベルでasync/awaitを使うためにstart関数を定義して呼び出す
