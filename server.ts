@@ -11,11 +11,11 @@ const start = async () => {
   });
 
   const ParamsSchema = z.object({
-    postId: z.coerce.number(), // stringでもnumberでもOKにする
+    postId: z.coerce.number(), // Fastify のルートパラメータ（req.params.postId）やクエリ（req.query.page）は 常に文字列として渡ってくるので、coerceを使って数値に変換する
   });
 
   app.get("/ping/:postId", async (req, reply) => {
-    const parseResult = ParamsSchema.safeParse(req.params);
+    const parseResult = ParamsSchema.safeParse(req.params); //失敗しても throw せず結果を返すsafeParseを使う
 
     if (!parseResult.success) {
       return reply.status(400).send({ error: "Invalid postId" });
