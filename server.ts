@@ -1,7 +1,8 @@
 import fastify from "fastify";
+import { z } from "zod";
 import rateLimit from "@fastify/rate-limit";
 
-async function start() {
+const start = async () => {
   const app = fastify({ logger: true });
 
   await app.register(rateLimit, {
@@ -9,21 +10,27 @@ async function start() {
     timeWindow: "1 minute",
   });
 
-  app.post("/ping", async (req) => {
-    const { name } = await req.body as { name: string };
-    if(name){
-      return { message: `Hello ${name}` };
-    }
-    return { message: "pong" };
+  const ParamsSchema = z.object({
+    postId: z.coerce.number(), // stringでもnumberでもOKにする
   });
 
-  try {
-    const address = await app.listen({ port: 3000 });
-    app.log.info(`Server running at ${address}`);
-  } catch (err) {
-    app.log.error(err);
-    process.exit(1);
-  }
-}
+  app.get("/ping/:postId", async (req, reply) => {
+    const parseResult = ParamsSchema.safeParse(req.params);
 
-start();// topレベルでasync/awaitを使うためにstart関数を定義して呼び出す
+    if (!parseResult.success) {
+      return reply.status(400).send({ error: "Invalid postId" });
+    }
+
+    const { postId } = parseResult.data;
+    return { message: `Post ID is ${postId}` };
+  });
+
+  app.listen({ port: 3000 }, (err, address) => {
+    if (err) {
+      app.log.error(err);
+      process.exit(1);
+    }
+    app.log.info(`Server running at ${address}`);
+  });
+};
+start();
