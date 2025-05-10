@@ -1,36 +1,52 @@
-import fastify from "fastify";
-import { z } from "zod";
-import rateLimit from "@fastify/rate-limit";
+import Fastify from 'fastify'
+import mysql from 'mysql2/promise'
+import { z } from 'zod'
 
+const fastify = Fastify({ logger: true })
+
+// DB コネクション（毎回作るより pool のほうが理想だが、まずはこれで）
+const getConnection = async () => {
+  return await mysql.createConnection({
+    host: process.env.DATABASE_HOST,
+    user: process.env.DATABASE_USER,
+    password: process.env.DATABASE_PASSWORD,
+    database: process.env.DATABASE_NAME,
+  })
+}
+
+// POST /users エンドポイント
+fastify.post('/users', async (request, reply) => {
+  const bodySchema = z.object({
+    name: z.string().min(1),
+  })
+
+  const result = bodySchema.safeParse(request.body)
+
+  if (!result.success) {
+    return reply.status(400).send({ error: 'Invalid input' })
+  }
+
+  const { name } = result.data
+
+  try {
+    const connection = await getConnection()
+    await connection.execute('INSERT INTO users (name) VALUES (?)', [name])
+    await connection.end()
+    return reply.send({ message: 'User saved' })
+  } catch (err) {
+    fastify.log.error(err)
+    return reply.status(500).send({ error: 'Database error' })
+  }
+})
+
+// 起動
 const start = async () => {
-  const app = fastify({ logger: true });
+  try {
+    await fastify.listen({ port: 3000, host: '0.0.0.0' })
+  } catch (err) {
+    fastify.log.error(err)
+    process.exit(1)
+  }
+}
 
-  await app.register(rateLimit, {
-    max: 10,
-    timeWindow: "1 minute",
-  });
-
-  const ParamsSchema = z.object({
-    postId: z.coerce.number(), // Fastify のルートパラメータ（req.params.postId）やクエリ（req.query.page）は 常に文字列として渡ってくるので、coerceを使って数値に変換する
-  });
-
-  app.get("/ping/:postId", async (req, reply) => {
-    const parseResult = ParamsSchema.safeParse(req.params); //失敗しても throw せず結果を返すsafeParseを使う
-
-    if (!parseResult.success) {
-      return reply.status(400).send({ error: "Invalid postId" });
-    }
-
-    const { postId } = parseResult.data;
-    return { message: `Post ID is ${postId}` };
-  });
-
-  app.listen({ port: 3000 }, (err, address) => {
-    if (err) {
-      app.log.error(err);
-      process.exit(1);
-    }
-    app.log.info(`Server running at ${address}`);
-  });
-};
-start();
+start()
